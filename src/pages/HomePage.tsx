@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Truck, Shield, Headphones, Star, ChevronLeft, ChevronRight } from 'lucide-react';
-import { supabase, Product } from '../lib/supabase';
+import { Truck, Shield, Headphones, Star } from 'lucide-react';
+import { Product, fetchProducts } from '../lib/firebaseApi';
 import { ProductCard } from '../components/ProductCard';
 
 interface HomePageProps {
@@ -17,16 +17,12 @@ export const HomePage = ({ onNavigate }: HomePageProps) => {
 
   const fetchFeaturedProducts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('is_featured', true)
-      .limit(8);
-
-    if (error) {
+    try {
+      const allProducts = await fetchProducts();
+      // Filter logic is applied client-side on mock data
+      setFeaturedProducts(allProducts.filter(p => p.is_featured).slice(0, 8));
+    } catch (error) {
       console.error('Error fetching featured products:', error);
-    } else {
-      setFeaturedProducts(data || []);
     }
     setLoading(false);
   };

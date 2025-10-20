@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Package, ShoppingCart, Users, TrendingUp, Plus } from 'lucide-react';
-import { supabase, Product, Order } from '../lib/supabase';
+import { Product, Order, fetchProducts, fetchOrdersByUserId, addProduct, deleteProduct, updateOrderStatus } from '../lib/firebaseApi';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 
 interface AdminDashboardPageProps {
@@ -32,18 +32,20 @@ const AdminDashboardContent = ({ onNavigate }: AdminDashboardPageProps) => {
   const fetchData = async () => {
     setLoading(true);
 
-    const [productsRes, ordersRes] = await Promise.all([
-      supabase.from('products').select('*').order('created_at', { ascending: false }),
-      supabase.from('orders').select('*').order('created_at', { ascending: false }),
+    const [productsData, ordersData] = await Promise.all([
+      fetchProducts(),
+      fetchOrdersByUserId('mock-admin-id'), // Admin fetches ALL orders (mock implementation fetches all)
     ]);
+    
+    // In a real Firebase app, products and orders would be fetched via separate APIs/queries
 
-    if (productsRes.data) setProducts(productsRes.data);
-    if (ordersRes.data) {
-      setOrders(ordersRes.data);
-      const revenue = ordersRes.data.reduce((sum, order) => sum + order.total, 0);
+    if (productsData) setProducts(productsData);
+    if (ordersData) {
+      setOrders(ordersData);
+      const revenue = ordersData.reduce((sum, order) => sum + order.total, 0);
       setStats({
-        totalProducts: productsRes.data?.length || 0,
-        totalOrders: ordersRes.data.length,
+        totalProducts: productsData?.length || 0,
+        totalOrders: ordersData.length,
         totalRevenue: revenue,
       });
     }
@@ -53,57 +55,48 @@ const AdminDashboardContent = ({ onNavigate }: AdminDashboardPageProps) => {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('products').insert({
-      ...newProduct,
-      price: parseFloat(newProduct.price),
-      stock: parseInt(newProduct.stock),
-      images: [newProduct.images],
-      is_featured: false,
-      rating: 0,
-      review_count: 0,
-    });
+    try {
+        await addProduct({
+          ...newProduct,
+          price: parseFloat(newProduct.price),
+          stock: parseInt(newProduct.stock),
+          images: [newProduct.images],
+          is_featured: false,
+          ingredients: null,
+          nutrition_facts: null,
+          weight: newProduct.weight || null,
+          flavor: newProduct.flavor || null,
+        });
 
-    if (error) {
-      alert('Error adding product: ' + error.message);
-    } else {
-      setShowAddProduct(false);
-      fetchData();
-      setNewProduct({
-        title: '',
-        brand: '',
-        category: 'Protein',
-        price: '',
-        description: '',
-        stock: '',
-        weight: '',
-        flavor: '',
-        images: 'https://images.pexels.com/photos/4164761/pexels-photo-4164761.jpeg',
-      });
+        setShowAddProduct(false);
+        fetchData();
+        setNewProduct({
+            title: '', brand: '', category: 'Protein', price: '', description: '',
+            stock: '', weight: '', flavor: '',
+            images: 'https://images.pexels.com/photos/4164761/pexels-photo-4164761.jpeg',
+        });
+    } catch (error: any) {
+        alert('Error adding product: ' + (error.message || 'Unknown error'));
     }
   };
 
   const deleteProduct = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
-    const { error } = await supabase.from('products').delete().eq('id', id);
-
-    if (error) {
-      alert('Error deleting product: ' + error.message);
-    } else {
-      fetchData();
+    try {
+        await deleteProduct(id);
+        fetchData();
+    } catch (error: any) {
+        alert('Error deleting product: ' + (error.message || 'Unknown error'));
     }
   };
 
-  const updateOrderStatus = async (orderId: string, status: string) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', orderId);
-
-    if (error) {
-      alert('Error updating order: ' + error.message);
-    } else {
+  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+    try {
+      await updateOrderStatus(orderId, status);
       fetchData();
+    } catch (error: any) {
+      alert('Error updating order: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -330,7 +323,7 @@ const AdminDashboardContent = ({ onNavigate }: AdminDashboardPageProps) => {
                     <p className="font-bold">₹{order.total.toLocaleString()}</p>
                     <select
                       value={order.status}
-                      onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                      onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
                       className="mt-1 text-sm border rounded px-2 py-1"
                     >
                       <option value="pending">Pending</option>

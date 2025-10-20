@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle, Package, Home } from 'lucide-react';
-import { supabase, Order } from '../lib/supabase';
+import { Order, fetchOrderById } from '../lib/firebaseApi';
 
 interface OrderSuccessPageProps {
   orderId: string;
@@ -16,16 +16,11 @@ export const OrderSuccessPage = ({ orderId, onNavigate }: OrderSuccessPageProps)
   }, [orderId]);
 
   const fetchOrder = async () => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', orderId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching order:', error);
-    } else {
-      setOrder(data);
+    try {
+        const data = await fetchOrderById(orderId);
+        setOrder(data);
+    } catch (error) {
+        console.error('Error fetching order:', error);
     }
     setLoading(false);
   };

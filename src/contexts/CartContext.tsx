@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase, CartItem, Product } from '../lib/supabase';
+import { Product, CartItem, fetchUserCart, saveCartItem, removeCartItem, clearUserCart } from '../lib/firebaseApi';
 import { useAuth } from './AuthContext';
 
 interface CartContextType {
-  cartItems: (CartItem & { products: Product })[];
+  cartItems: CartItem[];
   cartCount: number;
   cartTotal: number;
   loading: boolean;
@@ -26,7 +26,7 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const [cartItems, setCartItems] = useState<(CartItem & { products: Product })[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refreshCart = async () => {
@@ -36,15 +36,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from('cart_items')
-      .select('*, products(*)')
-      .eq('user_id', user.id);
-
-    if (error) {
+    try {
+      const data = await fetchUserCart(user.id);
+      setCartItems(data || []);
+    } catch (error) {
       console.error('Error fetching cart:', error);
-    } else {
-      setCartItems(data as any || []);
     }
     setLoading(false);
   };
@@ -61,53 +57,36 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const existingItem = cartItems.find(item => item.product_id === productId);
 
     if (existingItem) {
-      await updateQuantity(existingItem.id, existingItem.quantity + quantity);
+      await saveCartItem(user.id, productId, existingItem.quantity + quantity, existingItem.id);
     } else {
-      const { error } = await supabase.from('cart_items').insert({
-        user_id: user.id,
-        product_id: productId,
-        quantity,
-      });
-
-      if (error) throw error;
-      await refreshCart();
+      await saveCartItem(user.id, productId, quantity);
     }
+    await refreshCart();
   };
 
   const updateQuantity = async (itemId: string, quantity: number) => {
+    if (!user) return;
+
     if (quantity <= 0) {
       await removeFromCart(itemId);
       return;
     }
 
-    const { error } = await supabase
-      .from('cart_items')
-      .update({ quantity })
-      .eq('id', itemId);
+    const existingItem = cartItems.find(item => item.id === itemId);
+    if (!existingItem) return;
 
-    if (error) throw error;
+    await saveCartItem(user.id, existingItem.product_id, quantity, itemId);
     await refreshCart();
   };
 
   const removeFromCart = async (itemId: string) => {
-    const { error } = await supabase
-      .from('cart_items')
-      .delete()
-      .eq('id', itemId);
-
-    if (error) throw error;
+    await removeCartItem(itemId);
     await refreshCart();
   };
 
   const clearCart = async () => {
     if (!user) return;
-
-    const { error } = await supabase
-      .from('cart_items')
-      .delete()
-      .eq('user_id', user.id);
-
-    if (error) throw error;
+    await clearUserCart(user.id);
     await refreshCart();
   };
 

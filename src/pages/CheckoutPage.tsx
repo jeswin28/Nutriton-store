@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { CreditCard, Check } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { createOrder, generateOrderNumber } from '../lib/firebaseApi';
+import { Order } from '../lib/firebaseTypes';
 
 interface CheckoutPageProps {
   onNavigate: (page: string, orderId?: string) => void;
@@ -42,12 +43,8 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
     setError('');
 
     try {
-      const orderNumber = await generateOrderNumber();
-
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNumber,
+      // Data structure matches the Order type
+      const orderData: Omit<Order, 'id' | 'order_number' | 'created_at'> = {
           user_id: user.id,
           status: 'pending',
           payment_status: 'completed',
@@ -66,25 +63,10 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
             postalCode: formData.postalCode,
             country: formData.country,
           },
-        })
-        .select()
-        .single();
+      };
 
-      if (orderError) throw orderError;
-
-      const orderItems = cartItems.map((item) => ({
-        order_id: order.id,
-        product_id: item.product_id,
-        product_snapshot: item.products,
-        quantity: item.quantity,
-        price: item.products.price,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
+      const order = await createOrder(orderData, cartItems);
+      // In a real Firebase app, we'd also insert order_items as a subcollection here.
 
       await clearCart();
       onNavigate('order-success', order.id);
@@ -94,12 +76,6 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateOrderNumber = async () => {
-    const { data, error } = await supabase.rpc('generate_order_number');
-    if (error) throw error;
-    return data;
   };
 
   if (!user || cartItems.length === 0) {

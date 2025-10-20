@@ -1,5 +1,5 @@
 import { Star, ShoppingCart } from 'lucide-react';
-import { Product } from '../lib/supabase';
+import { Product } from '../lib/firebaseTypes';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
@@ -70,11 +70,10 @@ export const ProductCard = ({ product, onNavigate }: ProductCardProps) => {
           {[...Array(5)].map((_, i) => (
             <Star
               key={i}
-              className={`w-4 h-4 ${
-                i < Math.floor(product.rating)
+              className={`w-4 h-4 ${i < Math.floor(product.rating)
                   ? 'fill-yellow-400 text-yellow-400'
                   : 'text-gray-300'
-              }`}
+                }`}
             />
           ))}
           <span className="text-sm text-gray-600 ml-1">({product.review_count})</span>

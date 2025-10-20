@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Filter, X } from 'lucide-react';
-import { supabase, Product } from '../lib/supabase';
+import { Product, fetchProducts } from '../lib/firebaseApi';
 import { ProductCard } from '../components/ProductCard';
 
 interface ShopPageProps {
@@ -29,24 +29,20 @@ export const ShopPage = ({ onNavigate }: ShopPageProps) => {
   const [sortBy, setSortBy] = useState('featured');
 
   useEffect(() => {
-    fetchProducts();
+    fetchProductsData();
   }, []);
 
   useEffect(() => {
     applyFilters();
   }, [products, selectedCategory, selectedBrand, selectedPriceRange, sortBy]);
 
-  const fetchProducts = async () => {
+  const fetchProductsData = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching products:', error);
-    } else {
+    try {
+      const data = await fetchProducts();
       setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
     }
     setLoading(false);
   };
@@ -78,9 +74,11 @@ export const ShopPage = ({ onNavigate }: ShopPageProps) => {
         filtered.sort((a, b) => b.rating - a.rating);
         break;
       case 'newest':
+        // Sort by created_at string
         filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         break;
       default:
+        // Featured
         filtered.sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
     }
 

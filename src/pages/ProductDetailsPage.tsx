@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Star, ShoppingCart, Minus, Plus, Package, Shield, Truck } from 'lucide-react';
-import { supabase, Product, Review } from '../lib/supabase';
+import { Product, Review, fetchProductById, fetchRelatedProducts, fetchReviews } from '../lib/firebaseApi';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ProductCard } from '../components/ProductCard';
@@ -23,52 +23,28 @@ export const ProductDetailsPage = ({ productId, onNavigate }: ProductDetailsPage
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchProduct();
-    fetchReviews();
+    fetchData();
   }, [productId]);
 
-  const fetchProduct = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', productId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching product:', error);
-    } else if (data) {
-      setProduct(data);
-      fetchRelatedProducts(data.category);
+    try {
+        const data = await fetchProductById(productId);
+        if (data) {
+            setProduct(data);
+            const [related, fetchedReviews] = await Promise.all([
+                fetchRelatedProducts(data.id, data.category),
+                fetchReviews(data.id)
+            ]);
+            setRelatedProducts(related);
+            setReviews(fetchedReviews as any);
+        }
+    } catch (error) {
+        console.error('Error fetching product data:', error);
     }
     setLoading(false);
   };
-
-  const fetchRelatedProducts = async (category: string) => {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('category', category)
-      .neq('id', productId)
-      .limit(4);
-
-    if (!error && data) {
-      setRelatedProducts(data);
-    }
-  };
-
-  const fetchReviews = async () => {
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*, users(full_name)')
-      .eq('product_id', productId)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setReviews(data as any);
-    }
-  };
-
+  
   const handleAddToCart = async () => {
     if (!user) {
       onNavigate('login');
