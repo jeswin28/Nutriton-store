@@ -11,13 +11,13 @@ interface ProductCardProps {
 
 export const ProductCard = ({ product, onNavigate }: ProductCardProps) => {
   const { addToCart } = useCart();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth(); 
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) {
-      onNavigate('login');
+    if (!user || isAdmin) { // BLOCK ADMIN ADD TO CART
+      if (!user) onNavigate('login');
       return;
     }
 
@@ -70,10 +70,11 @@ export const ProductCard = ({ product, onNavigate }: ProductCardProps) => {
           {[...Array(5)].map((_, i) => (
             <Star
               key={i}
-              className={`w-4 h-4 ${i < Math.floor(product.rating)
+              className={`w-4 h-4 ${
+                i < Math.floor(product.rating)
                   ? 'fill-yellow-400 text-yellow-400'
                   : 'text-gray-300'
-                }`}
+              }`}
             />
           ))}
           <span className="text-sm text-gray-600 ml-1">({product.review_count})</span>
@@ -92,11 +93,11 @@ export const ProductCard = ({ product, onNavigate }: ProductCardProps) => {
 
         <button
           onClick={handleAddToCart}
-          disabled={product.stock === 0 || isAdding}
+          disabled={product.stock === 0 || isAdding || isAdmin} // DISABLED FOR ADMINS
           className="w-full py-2.5 bg-gradient-to-r from-[#00C896] to-[#1A1A1A] text-white rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
         >
           <ShoppingCart className="w-5 h-5" />
-          <span>{isAdding ? 'Adding...' : 'Add to Cart'}</span>
+          <span>{isAdmin ? 'Admin View' : (isAdding ? 'Adding...' : 'Add to Cart')}</span>
         </button>
       </div>
     </div>

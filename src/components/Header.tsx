@@ -60,17 +60,20 @@ export const Header = ({ onNavigate, currentPage }: HeaderProps) => {
           </nav>
 
           <div className="flex items-center space-x-4">
-            <button
-              onClick={() => onNavigate('cart')}
-              className="relative p-2 text-gray-700 hover:text-[#00C896] transition-colors"
-            >
-              <ShoppingCart className="w-6 h-6" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#00C896] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                  {cartCount}
-                </span>
-              )}
-            </button>
+            {/* HIDE CART ICON FOR ADMINS */}
+            {!isAdmin && ( 
+              <button
+                onClick={() => onNavigate('cart')}
+                className="relative p-2 text-gray-700 hover:text-[#00C896] transition-colors"
+              >
+                <ShoppingCart className="w-6 h-6" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[#00C896] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {user ? (
               <div className="relative">
@@ -98,16 +101,19 @@ export const Header = ({ onNavigate, currentPage }: HeaderProps) => {
                         <span>Admin Dashboard</span>
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        onNavigate('dashboard');
-                        setUserMenuOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-                    >
-                      <Package className="w-4 h-4" />
-                      <span>My Orders</span>
-                    </button>
+                    {/* HIDE MY ORDERS FOR ADMINS */}
+                    {!isAdmin && ( 
+                      <button
+                        onClick={() => {
+                          onNavigate('dashboard');
+                          setUserMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                      >
+                        <Package className="w-4 h-4" />
+                        <span>My Orders</span>
+                      </button>
+                    )}
                     <button
                       onClick={handleSignOut}
                       className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"

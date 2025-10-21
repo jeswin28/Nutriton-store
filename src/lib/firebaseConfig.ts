@@ -25,4 +25,5 @@ export type AppUser = {
 } | null;
 
 // The types are now centralized in firebaseTypes.ts
+// FIX: Added 'from' clause
 export * from './firebaseTypes';

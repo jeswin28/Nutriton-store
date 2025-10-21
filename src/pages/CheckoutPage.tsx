@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CreditCard, Check } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
-import { createOrder, generateOrderNumber } from '../lib/firebaseApi';
+import { createOrder } from '../lib/firebaseApi';
 import { Order } from '../lib/firebaseTypes';
 
 interface CheckoutPageProps {
@@ -11,7 +11,7 @@ interface CheckoutPageProps {
 
 export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
   const { cartItems, cartTotal, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,13 +37,12 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || isAdmin) return; // BLOCK ADMIN SUBMISSION
 
     setLoading(true);
     setError('');
 
     try {
-      // Data structure matches the Order type
       const orderData: Omit<Order, 'id' | 'order_number' | 'created_at'> = {
           user_id: user.id,
           status: 'pending',
@@ -66,7 +65,6 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
       };
 
       const order = await createOrder(orderData, cartItems);
-      // In a real Firebase app, we'd also insert order_items as a subcollection here.
 
       await clearCart();
       onNavigate('order-success', order.id);
@@ -77,6 +75,11 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
       setLoading(false);
     }
   };
+
+  if (isAdmin) { // REDIRECT ADMINS FROM CHECKOUT PAGE
+    onNavigate('admin'); 
+    return null;
+  }
 
   if (!user || cartItems.length === 0) {
     onNavigate('cart');

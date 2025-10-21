@@ -23,6 +23,7 @@ export const AuthPage = ({ onNavigate }: AuthPageProps) => {
 
     try {
       if (isLogin) {
+        // The signIn function now contains the mock fallback logic
         const { error } = await signIn(email, password);
         if (error) throw error;
         onNavigate('home');

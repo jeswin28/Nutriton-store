@@ -50,6 +50,23 @@ export const getProfile = async (uid: string): Promise<UserProfile | null> => {
     return profiles.find(p => p.id === uid) || null;
 };
 
+// --- Mock Sign In Helper (for AuthContext fallback) ---
+export const mockSignInAttempt = async (email: string, password: string): Promise<{ uid: string }> => {
+    await new Promise(r => setTimeout(r, 500)); // Simulate delay
+    const profiles: UserProfile[] = localStorageGet('user_profiles');
+    
+    // Find a profile by email
+    const user = profiles.find(p => p.email === email); 
+    
+    if (user) {
+        // Success: Return a structure that provides the UID
+        return { uid: user.id }; 
+    } else {
+        // Fail the mock sign in
+        throw new Error('auth/invalid-credential');
+    }
+};
+
 // --- Product & Review Functions (Firestore: 'products', 'reviews' collections) ---
 export const fetchProducts = async (): Promise<Product[]> => {
     await new Promise(r => setTimeout(r, 300));

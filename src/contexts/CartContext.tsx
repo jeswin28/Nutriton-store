@@ -25,12 +25,13 @@ export const useCart = () => {
 };
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refreshCart = async () => {
-    if (!user) {
+    // Admins do not have a cart to load
+    if (!user || isAdmin) {
       setCartItems([]);
       return;
     }
@@ -53,6 +54,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (!user) {
       throw new Error('Must be logged in to add to cart');
     }
+    if (isAdmin) { // BLOCK ADMIN MUTATION
+      throw new Error('Admin users cannot manage the cart.');
+    }
 
     const existingItem = cartItems.find(item => item.product_id === productId);
 
@@ -65,7 +69,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateQuantity = async (itemId: string, quantity: number) => {
-    if (!user) return;
+    if (!user || isAdmin) return; // BLOCK ADMIN MUTATION
 
     if (quantity <= 0) {
       await removeFromCart(itemId);
@@ -80,12 +84,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeFromCart = async (itemId: string) => {
+    if (isAdmin) return; // BLOCK ADMIN MUTATION
     await removeCartItem(itemId);
     await refreshCart();
   };
 
   const clearCart = async () => {
-    if (!user) return;
+    if (!user || isAdmin) return; // BLOCK ADMIN MUTATION
     await clearUserCart(user.id);
     await refreshCart();
   };

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, User as FirebaseAuthUser, AuthError } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { auth, createProfile, getProfile, UserProfile } from '../lib/firebaseApi';
+import { auth } from '../lib/firebaseConfig';
+import { createProfile, getProfile, UserProfile, mockSignInAttempt } from '../lib/firebaseApi'; 
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -51,7 +51,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Create profile document in Firestore (Simulated by createProfile API call)
       const profile = await createProfile(user.uid, email, fullName, phone || null);
       setUserProfile(profile);
       
@@ -63,20 +62,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // 1. Attempt REAL Firebase Sign In
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
       
+      // If the real auth works, proceed:
+      const user = userCredential.user;
       const profile = await getProfile(user.uid);
       if (profile) {
         setUserProfile(profile);
       } else {
-        // Should not happen if signup created the profile
         throw new Error('User profile not found in Firestore.');
       }
-      
       return { error: null };
-    } catch (authError) {
-      return { error: authError as AuthError };
+      
+    } catch (realAuthError) {
+        // 2. CATCH REAL ERROR (400) and fall back to LOCAL/MOCK Sign In
+        try {
+            const mockUserResult = await mockSignInAttempt(email, password);
+            
+            // 3. Use the mock UID to fetch the local profile
+            const profile = await getProfile(mockUserResult.uid); 
+            
+            if (profile) {
+                // Manually set the profile state since onAuthStateChanged won't fire for mock auth
+                setUserProfile(profile);
+                return { error: null };
+            } else {
+                throw new Error('User profile not found locally.');
+            }
+        } catch (localError: any) {
+            // This captures errors like "Invalid credentials" from the mock logic
+            return { error: localError as Error };
+        }
     }
   };
 

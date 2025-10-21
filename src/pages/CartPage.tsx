@@ -8,7 +8,12 @@ interface CartPageProps {
 
 export const CartPage = ({ onNavigate }: CartPageProps) => {
   const { cartItems, cartTotal, updateQuantity, removeFromCart, loading } = useCart();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+
+  if (isAdmin) { // REDIRECT ADMINS FROM CART PAGE
+    onNavigate('admin');
+    return null;
+  }
 
   if (!user) {
     return (
